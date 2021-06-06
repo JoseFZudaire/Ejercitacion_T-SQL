@@ -16,7 +16,7 @@ begin
 	select 
 	@stock = STOCK.stoc_cantidad,
 	@limite = STOCK.stoc_stock_maximo
-	from STOCK
+	from dbo.STOCK
 	where STOCK.stoc_producto = @producto
 	and STOCK.stoc_deposito = @deposito
 
@@ -51,7 +51,94 @@ where stoc_producto = '00000172' and stoc_deposito = '00';
 select dbo.funcion_ocupacion_deposito('00000172','00');
 
 
+--Ejercicio 2
+if OBJECT_ID('funcion_retorno_stock') is not null
+	drop function funcion_retorno_stock
+go
 
+create function funcion_retorno_stock(@articulo char(8), @fecha smalldatetime)
+	returns decimal(12,2)
+begin
+	declare @stock decimal(12,2)
+
+	select @stock = sum(Item_Factura.item_cantidad)
+	from dbo.Item_Factura 
+		join dbo.Factura on Factura.fact_numero = Item_Factura.item_numero
+			and Factura.fact_tipo = Item_Factura.item_tipo
+			and Factura.fact_sucursal = Item_Factura.item_sucursal
+	where Factura.fact_fecha >= @fecha
+		and Item_Factura.item_producto = @articulo
+	group by Item_Factura.item_producto
+
+	return @stock
+end
+go
+
+--Prueba 1 
+select sum(Item_Factura.item_cantidad) Cantidad
+from dbo.Item_Factura 
+	join dbo.Factura on Factura.fact_numero = Item_Factura.item_numero
+		and Factura.fact_tipo = Item_Factura.item_tipo
+		and Factura.fact_sucursal = Item_Factura.item_sucursal
+where Factura.fact_fecha >= '2011-12-16'
+	and Item_Factura.item_producto = '00010395'
+group by Item_Factura.item_producto
+	
+select dbo.funcion_retorno_stock('00010395','2011-12-16');
+
+--Ejercicio 3
+if OBJECT_ID('buscar_gerente') is not null
+	drop procedure buscar_gerente
+go
+
+create procedure buscar_gerente(@cant_empleados int output)
+as
+begin
+	set @cant_empleados =
+	(select count(*)
+	from dbo.Empleado
+	where Empleado.empl_jefe is null)
+
+	if @cant_empleados = 0
+	begin
+		raiserror('No hay empleados sin jefe', 16, 1)
+		return
+	end
+
+	if @cant_empleados > 0
+	begin
+		declare @gerente numeric(6,0)
+
+		set @gerente =
+		(select top 1
+		Empleado.empl_codigo
+		from dbo.Empleado
+		where Empleado.empl_jefe is null
+		order by Empleado.empl_salario desc, Empleado.empl_ingreso asc)
+	
+	update dbo.Empleado
+	set Empleado.empl_jefe = @gerente
+	where Empleado.empl_jefe is null
+
+	update Empleado
+	set Empleado.empl_tareas = 'Gerente'
+	where Empleado.empl_codigo = @gerente
+	end
+
+end
+go
+
+--Prueba 1
+select *
+from dbo.Empleado
+where Empleado.empl_jefe is null;
+
+declare @resultado int
+exec buscar_gerente @resultado output
+select @resultado
+go
+
+--Ejercicio 4
 
 
 

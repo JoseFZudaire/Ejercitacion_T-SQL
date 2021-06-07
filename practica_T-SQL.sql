@@ -141,36 +141,44 @@ go
 --Ejercicio 4
 if OBJECT_ID('actualizar_empleado') is not null
 	drop procedure actualizar_empleado;
+go
 
-create procedure actualizar_empleado(@vendedor as numeric(6,0))
+create procedure actualizar_empleado(@vendedor as numeric(6,0) output)
 as
 begin
+	declare @anio int;
+
+	set @anio = year((select MAX(Factura.fact_fecha) from dbo.Factura))
+	
 	set @vendedor = (select top 1 Factura.fact_vendedor
 	from dbo.Factura
-		join dbo.Item_Factura on Factura.fact_numero = Item_Factura.item_numero
+	where year(Factura.fact_fecha) = @anio
 	group by Factura.fact_vendedor
-	having year(Factura.fact_fecha) = year((select MAX(Factura.fact_fecha) from dbo.Factura))
-	order by SUM(Item_Factura.item_cantidad));
-
-	declare @totalEmpleado decimal(12,2);
-
-	select @totalEmpleado = sum(Factura.fact_total)
-	from dbo.Factura
-	group by Factura.fact_cliente
-	having year(Factura.fact_fecha) = year((select MAX(Factura.fact_fecha) from dbo.Factura));
+	order by SUM(Factura.fact_total) desc)
 
 	update dbo.Empleado
 	set Empleado.empl_comision = isnull((select sum(Factura.fact_total)
 	from dbo.Factura
-	where Factura.fact_vendedor = Empleado.empl_codigo
-	group by Factura.fact_cliente
-	having year(Factura.fact_fecha) = year((select MAX(Factura.fact_fecha) from dbo.Factura))),0) 
+	where year(Factura.fact_fecha) = @anio
+	and Empleado.empl_codigo = Factura.fact_vendedor),0) 
 
+end 
+go
 
+--Prueba 1 
+declare @anio int;
 
+set @anio = year((select MAX(Factura.fact_fecha) from dbo.Factura))
 
+select distinct Empleado.empl_comision, Empleado.empl_codigo
+	from dbo.Factura
+		join dbo.Empleado on Empleado.empl_codigo = Factura.fact_vendedor
+	where year(Factura.fact_fecha) = @anio;
 
-
+declare @resultado numeric(6,0)
+exec actualizar_empleado @resultado output
+select @resultado
+go
 
 
 

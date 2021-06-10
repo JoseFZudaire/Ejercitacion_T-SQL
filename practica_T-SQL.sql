@@ -180,6 +180,54 @@ exec actualizar_empleado @resultado output
 select @resultado
 go
 
+--Ejercicio 5
+use GD2015C1;
+
+if object_id('Fact_table') is not null 
+	drop table Fact_table;
+
+create table Fact_table(
+	anio char(4) not null,
+	mes char(2) not null,
+	familia char(3) not null,
+	rubro char(4) not null,
+	zona char(3) not null,
+	cliente char(6) not null,
+	producto char(8) not null,
+	cantidad decimal(12,2) not null,
+	monto decimal(12,2) 
+	primary key (anio, mes, familia, rubro, zona, cliente, producto))
+go
+
+create procedure Completar_Datos
+as 
+begin
+	insert into Fact_table (anio, mes, familia, rubro, zona, cliente, producto, cantidad, monto)
+	select distinct year(Factura.fact_fecha) anio, month(Factura.fact_fecha) mes, 
+		 (Producto.prod_familia) familia, (Producto.prod_rubro) rubro, 
+		  (Departamento.depa_zona) zona, Factura.fact_cliente cliente,
+		  (Item_Factura.item_producto) producto, cantidad, monto
+	from dbo.Factura
+		join dbo.Item_Factura on Factura.fact_numero = Item_Factura.item_numero
+		join dbo.Producto on Producto.prod_codigo = Item_Factura.item_producto
+		join dbo.Empleado on Factura.fact_vendedor = Empleado.empl_codigo
+		join dbo.Departamento on Departamento.depa_codigo = Empleado.empl_departamento
+	where Factura.fact_fecha is not null and Factura.fact_fecha is not null and
+		 Producto.prod_familia is not null and Producto.prod_rubro is not null and
+		  Departamento.depa_zona is not null and Factura.fact_cliente is not null
+	order by Factura.fact_fecha; 
+end
+go
+
+--Prueba 1
+
+exec Completar_Datos
+go
+
+select * from Fact_table;
+
+
+
 
 
 
